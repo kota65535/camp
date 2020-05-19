@@ -12,9 +12,6 @@ import tornado.websocket
 from tornado.ioloop import PeriodicCallback
 import picamera
 
-camera = picamera.PiCamera()
-camera.start_preview()
-
 # Hashed password for comparison and a cookie for login cache
 ROOT = os.path.normpath(os.path.dirname(__file__))
 
@@ -22,9 +19,10 @@ class IndexHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("index.html", port=args.port)
 
-# class ErrorHandler(tornado.web.RequestHandler):
-#     def get(self):
-#         self.send_error(status_code=403)
+
+class ErrorHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.send_error(status_code=403)
 
 
 class WebSocket(tornado.websocket.WebSocketHandler):
@@ -47,7 +45,6 @@ class WebSocket(tornado.websocket.WebSocketHandler):
     def loop(self):
         """Sends camera images in an infinite loop."""
         sio = io.BytesIO()
-
         camera.capture(sio, "jpeg", use_video_port=True)
 
         try:
@@ -56,26 +53,24 @@ class WebSocket(tornado.websocket.WebSocketHandler):
             self.camera_loop.stop()
 
 
-parser = argparse.ArgumentParser(description="Starts a webserver that "
-                                 "connects to a webcam.")
-parser.add_argument("--port", type=int, default=8000, help="The "
-                    "port on which to serve the website.")
-parser.add_argument("--resolution", type=str, default="low", help="The "
-                    "video resolution. Can be high, medium, or low.")
+parser = argparse.ArgumentParser(description="Starts a webserver that connects to a webcam.")
+parser.add_argument("--port", type=int, default=8000, help="The port on which to serve the website.")
+parser.add_argument("--resolution", type=str, default="640,480", help="The video resolution which is represented by width and height, joined by comma.")
 args = parser.parse_args()
 
+try:
+    width, height = [int(n) for n in args.resolution.split(',')]
+except:
+    raise Exception("Invalid resolution format: %s" % args.resolution)
 
-resolutions = {"high": (1280, 720), "medium": (640, 480), "low": (320, 240)}
-if args.resolution in resolutions:
-    camera.resolution = resolutions[args.resolution]
-else:
-    raise Exception("%s not in resolution options." % args.resolution)
+camera = picamera.PiCamera()
+camera.resolution = (width, height)
+camera.start_preview()
 
 handlers = [(r"/", IndexHandler),
             (r"/websocket", WebSocket),
             (r'/static/(.*)', tornado.web.StaticFileHandler, {'path': ROOT})]
 application = tornado.web.Application(handlers)
 application.listen(args.port)
-
 
 tornado.ioloop.IOLoop.instance().start()
