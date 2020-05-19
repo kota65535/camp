@@ -4,18 +4,12 @@ Creates an HTTP server with basic auth and websocket communication.
 """
 import argparse
 import base64
-import hashlib
 import os
-import time
-import threading
-import webbrowser
-
 import io
 
 import tornado.web
 import tornado.websocket
 from tornado.ioloop import PeriodicCallback
-
 import picamera
 
 camera = picamera.PiCamera()
@@ -28,12 +22,15 @@ class IndexHandler(tornado.web.RequestHandler):
     def get(self):
         self.render("index.html", port=args.port)
 
-class ErrorHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.send_error(status_code=403)
+# class ErrorHandler(tornado.web.RequestHandler):
+#     def get(self):
+#         self.send_error(status_code=403)
 
 
 class WebSocket(tornado.websocket.WebSocketHandler):
+
+    def check_origin(self, origin):
+        return True
 
     def on_message(self, message):
         """Evaluates the function pointed to by json-rpc."""
@@ -80,6 +77,5 @@ handlers = [(r"/", IndexHandler),
 application = tornado.web.Application(handlers)
 application.listen(args.port)
 
-webbrowser.open("http://localhost:%d/" % args.port, new=2)
 
 tornado.ioloop.IOLoop.instance().start()
